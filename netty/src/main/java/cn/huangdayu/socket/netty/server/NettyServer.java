@@ -1,14 +1,13 @@
-package cn.huangdayu.socket.netty;
+package cn.huangdayu.socket.netty.server;
 
+import cn.huangdayu.socket.netty.server.handler.ServerInHandler;
+import cn.huangdayu.socket.netty.server.handler.ServerOutHandler;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
@@ -40,7 +39,11 @@ public class NettyServer {
         /***
          * 引导类配置两大线程组
          */
-        serverBootstrap.group(bossGroup, workerGroup)
+        serverBootstrap
+                /***
+                 * 设定线程组
+                 */
+                .group(bossGroup, workerGroup)
                 /***
                  * 指定 IO 模型
                  * nio : NioServerSocketChannel.class
@@ -62,13 +65,16 @@ public class NettyServer {
                  */
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     protected void initChannel(NioSocketChannel ch) {
-                        ch.pipeline().addLast(new StringDecoder());
-                        ch.pipeline().addLast(new SimpleChannelInboundHandler<String>() {
-                            @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, String msg) {
-                                System.out.println(ctx.channel().attr(AttributeKey.valueOf("clientKey"))+" : " + msg);
-                            }
-                        });
+                        ch.pipeline().addLast(new ServerInHandler());
+                        //ch.pipeline().addLast(new ServerOutHandler());
+
+
+//                        ch.pipeline().addLast(new SimpleChannelInboundHandler<String>() {
+//                            @Override
+//                            protected void channelRead0(ChannelHandlerContext ctx, String msg) {
+//                                System.out.println(ctx.channel().attr(AttributeKey.valueOf("clientKey"))+" : " + msg);
+//                            }
+//                        });
                     }
                 })
 
@@ -78,7 +84,6 @@ public class NettyServer {
                 .childAttr(AttributeKey.newInstance("clientKey"), "clientId-" + UUID.randomUUID().toString())
 
 
-
                 /** 每条连接设置一些TCP底层相关的属性 */
                 /** 表示是否开启TCP底层心跳机制，true为开启 */
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
@@ -86,8 +91,7 @@ public class NettyServer {
                 .childOption(ChannelOption.TCP_NODELAY, true)
                 /** 给服务端channel设置一些属性 */
                 /** 表示系统用于临时存放已完成三次握手的请求的队列的最大长度，如果连接建立频繁，服务器处理创建新连接较慢，可以适当调大这个参数 */
-                .option(ChannelOption.SO_BACKLOG, 1024)
-        ;
+                .option(ChannelOption.SO_BACKLOG, 1024);
         /***
          * 绑定端口
          */
@@ -95,7 +99,7 @@ public class NettyServer {
     }
 
     /***
-     * 绑定端口，冲突导致失败则递增
+     * 绑定端口，冲突导致失败则递归递增
      * @param serverBootstrap
      * @param port
      */
